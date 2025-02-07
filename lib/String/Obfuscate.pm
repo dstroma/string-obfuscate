@@ -46,8 +46,7 @@ package String::Obfuscate {
   }
   *deobfuscate = \&obfuscate;
 
-  sub seed ($self, @newval) {
-    $self->{'seed'} = shift(@newval) if @newval > 0;
+  sub seed ($self) {
     return $self->{'seed'};
   }
 }
@@ -81,7 +80,9 @@ can still be reversed with the same object, or by asking the object for the
 seed used and re-using the same seed.
 
 Only ASCII letters and numbers are scrambled, making this module suitable for
-ASCII or base64 encoded strings.
+ASCII or base64 encoded strings. You can specify your own character set
+to the new constructor with the chars param, which takes a reference to an
+array of characters.
 
 =head1 RATIONALE
 
@@ -89,4 +90,14 @@ It's a fun module but can also be used to obfuscate non-security-sensitive
 data in a way that is about 1,000 times faster than encrypting it. This can
 be used with an HMAC to verify authenticity, but no mechanism is built in to
 do so.
+
+=head1 CONSTRUCTOR
+
+All parameters are optional. If a seed is not specified, perl's srand()
+function will be called to seed the random number generator and obtain
+a seed.
+
+    $ob = String::Obfuscate->new;
+    $ob = String::Obfuscate->new(seed => 123);
+    $ob = String::Obfuscate->new(chars => ['a'..'f',0..9]);
 
