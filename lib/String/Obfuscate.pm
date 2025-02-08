@@ -41,14 +41,19 @@ package String::Obfuscate {
     return $self->{'sub'};
   }
 
-  sub obfuscate ($self, $string) {
-    return $self->obfuscation_sub->($string);
+  sub obfuscate ($self, $string, %params) {
+    return ref $self ? $self->obfuscation_sub->($string) : $self->obfuscate_now($string, %params);
   }
   *deobfuscate = \&obfuscate;
 
   sub seed ($self) {
     return $self->{'seed'};
   }
+
+  sub obfuscate_now ($class, $string, %params) {
+    $class->new(%params)->obfuscate($string);
+  }
+  *deobfuscate_now = \&obfuscate_now;
 }
 
 __END__

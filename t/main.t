@@ -45,4 +45,15 @@ require_ok('String::Obfuscate');
   ok($obj->obfuscate('abcdef') ne 'abcdef', 'characters in charset are scrambled');
 }
 
+# Class method interface
+{
+  ok(String::Obfuscate->obfuscate('abc') ne 'abc', 'obfuscate using class method');
+  ok(
+    String::Obfuscate->deobfuscate(
+      String::Obfuscate->obfuscate('abc123ABC', seed => 3141529),
+      seed => 3141529
+    ) eq 'abc123ABC', 'obfuscate and reverse obfuscate using class method with specified seed'
+  );
+}
+
 done_testing();
