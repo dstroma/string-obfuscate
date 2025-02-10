@@ -5,30 +5,31 @@ package String::Obfuscate {
 
   # Maybe use Math::Random::MT
   our $use_Math_Random_MT = undef; # undef=optional, 0=never, true=force
+  our $loaded_Math_Random_MT;
   {
     eval {
       require Math::Random::MT;
       Math::Random::MT->import(qw(srand rand));
-      local $List::Util::RAND = \&Math::Random::MT::rand;
+      $loaded_Math_Random_MT = \&srand eq \&Math::Random::MT::srand ? 1 : 0;
     } if !defined $use_Math_Random_MT or $use_Math_Random_MT;
 
-    if ($use_Math_Random_MT) {
-      die "Cannot load Math::Random::MT"
-        unless \&srand eq \&Math::Random::MT::srand;
-    }
+    die "Cannot load Math::Random::MT"
+      if $use_Math_Random_MT and not $loaded_Math_Random_MT;
   }
 
   sub new ($class, %params) {
-    my $seed  = delete $params{'seed'};
-    my $chars = delete $params{'chars'};
+    my $seed     = delete $params{'seed'};
+    my $chars    = delete $params{'chars'};
+    my $use_MRMT = delete $params{'use_Math_Random_MT'};
 
     die "unexpected param: $_"
       for keys %params;
     die 'chars must be arrayref of characters'
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
 
-    $seed  //= srand;
-    $chars //= STD_CHARS;
+    $use_MRMT = 1 if !defined $use_MRMT and $loaded_Math_Random_MT;
+    $seed   //= srand;
+    $chars  //= STD_CHARS;
 
     my $self = bless { seed => $seed, chars => $chars }, $class;
     $self->obfuscation_sub;
@@ -39,6 +40,8 @@ package String::Obfuscate {
     unless ($self->{'sub'}) {
       # Make array of shuffled chars
       srand($self->seed);
+      local $List::Util::RAND = sub { String::Obfuscate::rand() }
+        if $use_Math_Random_MT or !defined $use_Math_Random_MT;
       my @chars = List::Util::shuffle($self->{'chars'}->@*);
       srand; # Reseed to not affect outside code relying on rand()
 

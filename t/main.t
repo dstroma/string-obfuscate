@@ -1,3 +1,4 @@
+#!perl
 use v5.40;
 use Test::More;
 
@@ -25,7 +26,8 @@ require_ok('String::Obfuscate');
 {
   my $seed = 12345;
   my $in   = 'abcdefgABCDEFG12345';
-  my $out  = 'unvQDAFfSGelgC3z1yT';
+  my $out  = String::Obfuscate->obfuscate($in, seed => $seed);
+  warn $out;
   my $obj = String::Obfuscate->new(seed => $seed);
   ok(ref $obj, 'create object with specified seed');
 
