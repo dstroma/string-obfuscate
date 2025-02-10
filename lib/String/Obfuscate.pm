@@ -1,8 +1,22 @@
 use v5.40;
 package String::Obfuscate {
   use List::Util qw(shuffle);
+  use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
 
-  my $std_chars = ['a'..'z', 'A'..'Z', 0..9];
+  # Maybe use Math::Random::MT
+  our $use_Math_Random_MT = undef; # undef=optional, 0=never, true=force
+  {
+    eval {
+      require Math::Random::MT;
+      Math::Random::MT->import(qw(srand rand));
+      local $List::Util::RAND = \&Math::Random::MT::rand;
+    } if !defined $use_Math_Random_MT or $use_Math_Random_MT;
+
+    if ($use_Math_Random_MT) {
+      die "Cannot load Math::Random::MT"
+        unless \&srand eq \&Math::Random::MT::srand;
+    }
+  }
 
   sub new ($class, %params) {
     my $seed  = delete $params{'seed'};
@@ -14,7 +28,7 @@ package String::Obfuscate {
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
 
     $seed  //= srand;
-    $chars //= $std_chars;
+    $chars //= STD_CHARS;
 
     my $self = bless { seed => $seed, chars => $chars }, $class;
     $self->obfuscation_sub;
@@ -88,6 +102,12 @@ Only ASCII letters and numbers are scrambled, making this module suitable for
 ASCII or base64 encoded strings. You can specify your own character set
 to the new constructor with the chars param, which takes a reference to an
 array of characters.
+
+=head1 CAVEATS
+
+This module will mess with perl's randon number generator seed, although it
+will be re-seeded with a new random seed afterward. If you do not want this,
+you should install the optional Math::Random::MT and it will use that instead.
 
 =head1 RATIONALE
 
