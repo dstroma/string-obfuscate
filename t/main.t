@@ -24,7 +24,7 @@ require_ok('String::Obfuscate');
 
 # Canned seed
 {
-  my $seed = 12345;
+  my $seed = 123456;
   my $in   = 'abcdefgABCDEFG12345';
   my $out  = String::Obfuscate->obfuscate($in, seed => $seed);
   warn $out;
