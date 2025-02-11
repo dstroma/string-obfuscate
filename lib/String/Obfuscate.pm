@@ -1,22 +1,40 @@
 use v5.40;
 package String::Obfuscate {
   use List::Util qw(shuffle);
+  use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
 
-  my $std_chars = ['a'..'z', 'A'..'Z', 0..9];
+  # Maybe use Math::Random::MT
+  our $use_Math_Random_MT = undef; # undef=optional, 0=never, true=force
+  our $loaded_Math_Random_MT;
+  {
+    eval {
+      require Math::Random::MT;
+      Math::Random::MT->import(qw(srand rand));
+      $loaded_Math_Random_MT = \&srand eq \&Math::Random::MT::srand ? 1 : 0;
+    } if !defined $use_Math_Random_MT or $use_Math_Random_MT;
+
+    die "Cannot load Math::Random::MT"
+      if $use_Math_Random_MT and not $loaded_Math_Random_MT;
+  }
 
   sub new ($class, %params) {
-    my $seed  = delete $params{'seed'};
-    my $chars = delete $params{'chars'};
+    my $seed     = delete $params{'seed'};
+    my $chars    = delete $params{'chars'};
+    my $use_MRMT = delete $params{'use_Math_Random_MT'} // $use_Math_Random_MT;
 
     die "unexpected param: $_"
       for keys %params;
     die 'chars must be arrayref of characters'
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
 
-    $seed  //= srand;
-    $chars //= $std_chars;
+    $use_MRMT = Math::Random::MT->new(
+      defined $seed ? ($seed) : ()
+    ) if $use_MRMT or (!defined $use_MRMT and $loaded_Math_Random_MT);
 
-    my $self = bless { seed => $seed, chars => $chars }, $class;
+    $chars //= STD_CHARS;
+    $seed  //= $use_MRMT ? $use_MRMT->get_seed() : srand;
+
+    my $self = bless { seed => $seed, chars => $chars, MRMT => $use_MRMT }, $class;
     $self->obfuscation_sub;
     return $self;
   }
@@ -24,9 +42,15 @@ package String::Obfuscate {
   sub obfuscation_sub ($self) {
     unless ($self->{'sub'}) {
       # Make array of shuffled chars
-      srand($self->seed);
-      my @chars = List::Util::shuffle($self->{'chars'}->@*);
-      srand; # Reseed to not affect outside code relying on rand()
+      my @chars; # = @{ $self->{'chars'} ? $self->{'chars'} : STD_CHARS };
+      if ($self->{'MRMT'}) {
+        local $List::Util::RAND = sub { $self->{'MRMT'}->rand(@_) };
+        @chars = List::Util::shuffle($self->{'chars'}->@*);
+      } else {
+        srand($self->seed);
+        @chars = List::Util::shuffle($self->{'chars'}->@*);
+        srand; # Reseed to not affect outside code relying on rand()
+      }
 
       my $from = join '', @chars;
       my $to   = reverse $from;
@@ -42,18 +66,13 @@ package String::Obfuscate {
   }
 
   sub obfuscate ($self, $string, %params) {
-    return ref $self ? $self->obfuscation_sub->($string) : $self->obfuscate_now($string, %params);
+    return ref $self ? $self->obfuscation_sub->($string) : $self->new(%params)->obfuscate($string);
   }
   *deobfuscate = \&obfuscate;
 
   sub seed ($self) {
     return $self->{'seed'};
   }
-
-  sub obfuscate_now ($class, $string, %params) {
-    $class->new(%params)->obfuscate($string);
-  }
-  *deobfuscate_now = \&obfuscate_now;
 }
 
 __END__
@@ -88,6 +107,12 @@ Only ASCII letters and numbers are scrambled, making this module suitable for
 ASCII or base64 encoded strings. You can specify your own character set
 to the new constructor with the chars param, which takes a reference to an
 array of characters.
+
+=head1 CAVEATS
+
+This module will mess with perl's randon number generator seed, although it
+will be re-seeded with a new random seed afterward. If you do not want this,
+you should install the optional Math::Random::MT and it will use that instead.
 
 =head1 RATIONALE
 
