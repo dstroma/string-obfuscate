@@ -1,10 +1,10 @@
 use v5.40;
-package String::Obfuscate {
+class String::Obfuscate 0.01 {
   use List::Util qw(shuffle);
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
 
   # Maybe use Math::Random::MT
-  our $use_Math_Random_MT = undef; # undef=optional, 0=never, true=force
+  our $g_use_Math_Random_MT = undef; # undef=optional, 0=never, true=force
   our $loaded_Math_Random_MT;
   {
     eval {
@@ -17,62 +17,59 @@ package String::Obfuscate {
       if $use_Math_Random_MT and not $loaded_Math_Random_MT;
   }
 
-  sub new ($class, %params) {
-    my $seed     = delete $params{'seed'};
-    my $chars    = delete $params{'chars'};
-    my $use_MRMT = delete $params{'use_Math_Random_MT'} // $use_Math_Random_MT;
+  field $seed :param :reader;
+  field $chars :param(STD_CHARS);
+  field $use_Math_Random_MT :param($g_use_Math_Random_MT);
+  field $MRMT;
+  field $obfuscator;
 
-    die "unexpected param: $_"
-      for keys %params;
+  ADJUST {
     die 'chars must be arrayref of characters'
-      if $chars and (not ref $chars or ref $chars ne 'ARRAY');
+      if not ref $chars or ref $chars ne 'ARRAY';
 
-    $use_MRMT = Math::Random::MT->new(
+    $use_Math_Random_MT = $loaded_Math_Random_MT
+      if !defined $use_Math_Random_MT;
+
+    $MRMT = Math::Random::MT->new(
       defined $seed ? ($seed) : ()
-    ) if $use_MRMT or (!defined $use_MRMT and $loaded_Math_Random_MT);
+    ) if $use_Math_Random_MT;
 
-    $chars //= STD_CHARS;
-    $seed  //= $use_MRMT ? $use_MRMT->get_seed() : srand;
+    $seed //= $MRMT ? $MRMT->get_seed() : srand;
 
-    my $self = bless { seed => $seed, chars => $chars, MRMT => $use_MRMT }, $class;
-    $self->obfuscation_sub;
-    return $self;
+    $obfuscator = $self->obfuscation_sub;
   }
 
-  sub obfuscation_sub ($self) {
-    unless ($self->{'sub'}) {
-      # Make array of shuffled chars
-      my @chars; # = @{ $self->{'chars'} ? $self->{'chars'} : STD_CHARS };
-      if ($self->{'MRMT'}) {
-        local $List::Util::RAND = sub { $self->{'MRMT'}->rand(@_) };
-        @chars = List::Util::shuffle($self->{'chars'}->@*);
-      } else {
-        srand($self->seed);
-        @chars = List::Util::shuffle($self->{'chars'}->@*);
-        srand; # Reseed to not affect outside code relying on rand()
-      }
+  method obfuscation_sub () {
+    return $obfuscator if $obufscator;
 
-      my $from = join '', @chars;
-      my $to   = reverse $from;
-      my $sub  = eval qq<
-        sub (\$string) {
-          \$string =~ tr/$from/$to/;
-          return \$string;
-        };
-      > or die $@;
-      $self->{'sub'} = $sub;
+    # Make array of shuffled chars
+    my @chars; # = @{ $self->{'chars'} ? $self->{'chars'} : STD_CHARS };
+    if ($self->{'MRMT'}) {
+      local $List::Util::RAND = sub { $self->{'MRMT'}->rand(@_) };
+      @chars = List::Util::shuffle($self->{'chars'}->@*);
+    } else {
+      srand($self->seed);
+      @chars = List::Util::shuffle($self->{'chars'}->@*);
+      srand; # Reseed to not affect outside code relying on rand()
     }
-    return $self->{'sub'};
+
+    my $from = join '', @chars;
+    my $to   = reverse $from;
+    my $sub  = eval qq<
+      sub (\$string) {
+        \$string =~ tr/$from/$to/;
+        return \$string;
+      };
+    > or die $@;
+    return $sub;
   }
 
-  sub obfuscate ($self, $string, %params) {
-    return ref $self ? $self->obfuscation_sub->($string) : $self->new(%params)->obfuscate($string);
+  sub obfuscate ($class_or_self, %params) {
+    return $class_or_self->_obfuscate($string) if ref $class_or_self;
+    return $class_or_self->new(%params)->_obfuscate($string);
   }
   *deobfuscate = \&obfuscate;
 
-  sub seed ($self) {
-    return $self->{'seed'};
-  }
 }
 
 __END__
