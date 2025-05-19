@@ -9,8 +9,7 @@ package String::Obfuscate {
   {
     eval {
       require Math::Random::MT;
-      Math::Random::MT->import(qw(srand rand));
-      $loaded_Math_Random_MT = \&srand eq \&Math::Random::MT::srand ? 1 : 0;
+      $loaded_Math_Random_MT = 1;
     } if !defined $use_Math_Random_MT or $use_Math_Random_MT;
 
     die "Cannot load Math::Random::MT"
