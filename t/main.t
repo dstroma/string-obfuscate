@@ -1,8 +1,11 @@
 #!perl
 use v5.36;
 use Test::More;
-use Module::Loaded ();
+use Module::Loaded qw(is_loaded);
 our @rng_classes = qw(Dummy Math::Random::MT Math::Random::ISAAC::XS Math::Random::ISAAC::PP);
+
+eval { require Class::Unload; }
+  or warn "Class::Unload is not available, some tests will be skipped";
 
 # Require test
 require_ok('String::Obfuscate');
@@ -14,7 +17,7 @@ foreach my $i (undef, @rng_classes) {
 
   # If we pre-load an RNG module, String::Obfuscate should use that one
   # This test is optional and only performed if Class::Unload is available
-  if ($i and $i ne 'Dummy' and eval "require Class::Unload; 1") {
+  if ($i and $i ne 'Dummy' and is_loaded('Class::Unload')) {
     Class::Unload->unload($_) for (@rng_classes, 'String::Obfuscate');
     eval "require $i" or die $@;
     eval "require String::Obfuscate" or die $@;
