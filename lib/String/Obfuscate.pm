@@ -1,84 +1,84 @@
-use v5.40;
+use v5.36;
 package String::Obfuscate {
-  use List::Util qw(shuffle);
+  use List::Util ();
+  use Module::Loaded qw(is_loaded);
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
+  use constant MAX_SEED  => 4_294_967_295;
 
-  # Maybe use Math::Random::MT
-  our $use_Math_Random_MT = undef; # undef=optional, 0=never, true=force
-  our $loaded_Math_Random_MT;
-  {
-    eval {
-      require Math::Random::MT;
-      $loaded_Math_Random_MT = 1;
-    } if !defined $use_Math_Random_MT or $use_Math_Random_MT;
+  our @RNG_CLASSES = qw(
+    Math::Random::MT
+    Math::Random::ISAAC::XS
+    Math::Random::ISAAC::PP
+  );
 
-    die "Cannot load Math::Random::MT"
-      if $use_Math_Random_MT and not $loaded_Math_Random_MT;
-  }
+  # Maybe a class is already loaded?
+  my @loaded_rng_classes = grep { is_loaded($_) } @RNG_CLASSES;
 
   sub new ($class, %params) {
-    my $seed     = delete $params{'seed'};
-    my $chars    = delete $params{'chars'};
-    my $use_MRMT = delete $params{'use_Math_Random_MT'} // $use_Math_Random_MT;
+    my $seed  = delete $params{'seed'};  # optional seed
+    my $chars = delete $params{'chars'}; # optional arrayref to char list
+    my $rng   = delete $params{'rng'};   # force class or object, or pp
 
-    die "unexpected param: $_"
-      for keys %params;
-    die 'chars must be arrayref of characters'
+    die 'unexpected param(s): ' . join(', ', keys %params)
+      if keys %params;
+    die 'chars must be a ref to an array of characters'
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
 
-    $use_MRMT = Math::Random::MT->new(
-      defined $seed ? ($seed) : ()
-    ) if $use_MRMT or (!defined $use_MRMT and $loaded_Math_Random_MT);
+    # Check if user wants to use a specific object or perl builtin rand()?
+    my $rng_obj      = ref $rng ? $rng : undef;
+    my $use_perl_rng = (!$rng_obj and $rng and ($rng eq 'perl'));
 
-    $chars //= STD_CHARS;
-    $seed  //= $use_MRMT ? $use_MRMT->get_seed() : srand;
+    # Maybe load external RNG module
+    unless ($use_perl_rng or $rng_obj) {
+      my @rngs_to_try = $rng ? ($rng) : (@loaded_rng_classes, @RNG_CLASSES);
+      foreach my $i (@rngs_to_try) {
+        eval {
+          eval "require $i" unless is_loaded($i);
+          $rng_obj = $i->new(defined $seed ? ($seed) : ());
+        };
+        last if $rng_obj;
+      }
+    }
 
-    my $self = bless { seed => $seed, chars => $chars, MRMT => $use_MRMT }, $class;
-    $self->obfuscation_sub;
+    die "could not utilize rng class or object $rng"
+      if $rng and $rng ne 'perl' and not $rng_obj;
+
+    my $self = bless { }, $class;
+    $self->{rng}   = $rng_obj if $rng_obj;
+    $self->{chars} = $chars || STD_CHARS;
+    $self->{seed}  = $seed  // make_seed();
+    $self->{code}  = $self->make_obfuscation_sub;
     return $self;
   }
 
-  sub obfuscation_sub ($self) {
-    unless ($self->{'sub'}) {
-      # Make array of shuffled chars
-      my @chars; # = @{ $self->{'chars'} ? $self->{'chars'} : STD_CHARS };
-      if ($self->{'MRMT'}) {
-        local $List::Util::RAND = sub { $self->{'MRMT'}->rand(@_) };
-        @chars = List::Util::shuffle($self->{'chars'}->@*);
-      } else {
-        srand($self->seed);
-        @chars = List::Util::shuffle($self->{'chars'}->@*);
-        srand; # Reseed to not affect outside code relying on rand()
-      }
+  sub make_obfuscation_sub ($self) {
+    srand($self->seed) unless $self->{'rng'};
+    local $List::Util::RAND = sub { $self->{'rng'}->rand(@_) } if $self->{'rng'};
+    my $from_chars = join '', List::Util::shuffle($self->{'chars'}->@*);
+    srand() unless $self->{'rng'}; # Reseed to not affect outside code
 
-      my $from = join '', @chars;
-      my $to   = reverse $from;
-      my $sub  = eval qq<
-        sub (\$string) {
-          \$string =~ tr/$from/$to/;
-          return \$string;
-        };
-      > or die $@;
-      $self->{'sub'} = $sub;
-    }
-    return $self->{'sub'};
+    my $to_chars = reverse $from_chars;
+    my $sub = eval qq<
+      sub (\$string) {
+        \$string =~ tr/$from_chars/$to_chars/;
+        return \$string;
+      };
+    > or die $@;
+    return $sub;
   }
 
   sub obfuscate ($self, $string, %params) {
-    return ref $self ? $self->obfuscation_sub->($string) : $self->new(%params)->obfuscate($string);
+    return ref $self ? $self->{'code'}->($string) : $self->new(%params)->obfuscate($string);
   }
   *deobfuscate = \&obfuscate;
 
-  sub seed ($self) {
-    return $self->{'seed'};
-  }
+  sub make_seed () { int(rand(MAX_SEED)) }
+  sub seed ($self) { $self->{'seed'}     }
 }
-
-__END__
 
 =head1 NAME
 
-String::Obfuscate - Reversibly scramble a string.
+String::Obfuscate - Reversibly obfuscate (scramble) a string.
 
 =head1 VERSION
 
@@ -89,10 +89,6 @@ version 0.01
     use String::Obfuscate;
     my $obf = String::Obfuscate->new(seed => 123); # optional seed for rand()
     $obf->obfuscate('abc'); # 'cba'
-
-    # Optionally get a reference to the seed-specific obfuscation sub
-    my $code = $obf->obfuscation_sub;
-    $code->('abc'); # 'cba'
 
 =head1 DESCRIPTION
 
@@ -111,14 +107,16 @@ array of characters.
 
 This module will mess with perl's randon number generator seed, although it
 will be re-seeded with a new random seed afterward. If you do not want this,
-you should install the optional Math::Random::MT and it will use that instead.
+you should install one of the following supported external RNG modules:
+
+    Math::Random::MT
+    Math::Random::ISAAC  # ::XS or ::PP
 
 =head1 RATIONALE
 
-It's a fun module but can also be used to obfuscate non-security-sensitive
-data in a way that is about 1,000 times faster than encrypting it. This can
-be used with an HMAC to verify authenticity, but no mechanism is built in to
-do so.
+This module can also be used to obfuscate non-security-sensitive data in a way
+that is about 1,000 times faster than encrypting it. This can be used with an
+HMAC to verify authenticity, but no mechanism is built in to do so.
 
 =head1 CONSTRUCTOR
 
@@ -130,3 +128,8 @@ a seed.
     $ob = String::Obfuscate->new(seed => 123);
     $ob = String::Obfuscate->new(chars => ['a'..'f',0..9]);
 
+=head1 OPTIONAL MODULES
+
+    Math::Random::MT
+    Math::Random::ISAAC  # ::XS or ::PP
+    Class::Unload        # for tests
