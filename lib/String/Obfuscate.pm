@@ -87,7 +87,7 @@ version 0.01
 =head1 SYNOPSIS
 
     use String::Obfuscate;
-    my $obf = String::Obfuscate->new(seed => 123); # optional seed for rand()
+    my $obf = String::Obfuscate->new(seed => 123); # optional seed
     $obf->obfuscate('abc'); # 'cba'
 
 =head1 DESCRIPTION
@@ -133,3 +133,20 @@ a seed.
     Math::Random::MT
     Math::Random::ISAAC  # ::XS or ::PP
     Class::Unload        # for tests
+
+=head1 SPEED AND COMPARISON TO SIMILAR MODULES
+
+This module generates an obfuscate() method for each object based on the RNG
+speed and the desired RNG module. Once generated, using it is very fast. To
+properly take advantage of its speed, when running in a peristent environment,
+create your String::Obfuscate object(s) with the desired seed(s) during the
+compile-time phase of your program. You can then use the object(s) to encode
+or decode strings several orders of magnitude faster than encrypting them.
+
+Crypt::Cipher::Vigenere is extremely slow and only scrambles letters, not
+digits or other characters.
+
+Crypt::CVS is very slow and uses a fixed cipher.
+
+Crypt::Rot47 is very fast, but uses a fixed cipher.
+
