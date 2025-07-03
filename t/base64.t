@@ -4,18 +4,25 @@ use Test::More;
 
 # Require test
 require_ok('String::Obfuscate::Base64');
-my $obj    = String::Obfuscate::Base64->new(seed => 123);
-my $encstr = $obj->obfuscate(q{Polly wanna cracker? \t\n Hello! ~!@#$%^&*()_+`-=[]\;',./':"<>?});
-my $decstr = $obj->deobfuscate($encstr);
-
-say $encstr;
-say $decstr;
+my $str    = qq{Polly wanna cracker? \t\n Hello! ~!@#$%^&*()_+`-=[]\;',./':"<>?};
+{
+    my $obj    = String::Obfuscate::Base64->new(seed => 1234);
+    my $encstr = $obj->obfuscate($str);
+    my $decstr = $obj->deobfuscate($encstr);
+    say $encstr;
+    say $decstr;
+    ok($str eq $decstr, 'Decoded string matches original');
+}
 
 say '-' x 80;
 
-my $obj    = String::Obfuscate::UrlBase64->new(seed => 123);
-my $encstr = $obj->obfuscate(q{Polly wanna cracker? \t\n Hello! ~!@#$%^&*()_+`-=[]\;',./':"<>?});
-my $decstr = $obj->deobfuscate($encstr);
+{
+    my $obj    = String::Obfuscate::Base64_Url->new(seed => 1234);
+    my $encstr = $obj->obfuscate($str);
+    my $decstr = $obj->deobfuscate($encstr);
+    say "ENCODED: $encstr";
+    say "DECODED: $decstr";
+    ok($str eq $decstr, 'Decoded string matches original');
+}
 
-say $encstr;
-say $decstr;
+done_testing();

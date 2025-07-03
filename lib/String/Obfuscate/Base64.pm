@@ -19,26 +19,18 @@ package String::Obfuscate::Base64 {
     decode_base64($string);
   }
 }
-1;
 
-package String::Obfuscate::UrlBase64 {
-  use parent 'String::Obfuscate';
-  use constant UB64_CHARS => ['a'..'z', 'A'..'Z', 0..9, '-', '_'];
-  use MIME::Base64::URLSafe;
-
-  sub new ($class, %params) {
-    $params{'chars'} = UB64_CHARS;
-    $class->SUPER::new(%params);
-  }
-
+package String::Obfuscate::Base64_Url {
+  use parent 'String::Obfuscate::Base64';
   sub obfuscate ($self, $string, %params) {
-    $string = urlsafe_b64encode($string);
-    $self->SUPER::obfuscate($string, %params);
+    $string = $self->SUPER::obfuscate($string, %params);
+    $string =~ tr`+/=\n`-_`d; # + to -, / to _, delete newline and =
+    return $string;
   }
-
   sub deobfuscate ($self, $string, %params) {
-    $string = $self->SUPER::deobfuscate($string, %params);
-    urlsafe_b64decode($string);
+    $string =~ tr`-_`+/`;
+    return $self->SUPER::deobfuscate($string, %params);
   }
 }
+
 1;

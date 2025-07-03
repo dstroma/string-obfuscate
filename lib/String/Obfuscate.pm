@@ -13,6 +13,8 @@ package String::Obfuscate {
       if keys %params;
     die 'chars must be a ref to an array of characters'
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
+    die 'chars cannot contain backtick (`) or hyphen (-)'
+      if $chars and (join('', @$chars) =~ m/[-`]/);
 
     my $self = bless { }, $class;
     $self->{chars} = $chars || STD_CHARS;
@@ -26,17 +28,12 @@ package String::Obfuscate {
     my $rng = $self->{rng};
     local $List::Util::RAND = sub { $rng->rand() };
 
-    my sub re_escape ($str) {
-      $str =~ s{|}{\|}g;
-      $str =~ s{-}{\-}g;
-    }
-
-    my $from_chars = re_escape(join '', List::Util::shuffle($self->{chars}->@*));
-    my $to_chars   = re_escape(reverse $from_chars);
+    my $from_chars = join('', List::Util::shuffle($self->{chars}->@*));
+    my $to_chars   = scalar(reverse($from_chars));
 
     my $sub = eval qq<
       sub (\$string) {
-        \$string =~ tr|$from_chars|$to_chars|;
+        \$string =~ tr`$from_chars`$to_chars`;
         return \$string;
       };
     > or die $@;
