@@ -8,13 +8,14 @@ package String::Obfuscate {
   sub new ($class, %params) {
     my $seed  = delete $params{'seed'};  # optional seed
     my $chars = delete $params{'chars'}; # optional arrayref to char list
+    #my $rng   = delete $params{'rng'};   # optional RNG object
 
     die 'unexpected param(s): ' . join(', ', keys %params)
       if keys %params;
     die 'chars must be a ref to an array of characters'
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
-    die 'chars cannot contain backtick (`) or hyphen (-)'
-      if $chars and (join('', @$chars) =~ m/[-`]/);
+    #die 'rng must be an object'
+    #  if $rng and not ref $rng and not $rng->can('rand');
 
     my $self = bless { }, $class;
     $self->{chars} = $chars || STD_CHARS;
@@ -33,7 +34,7 @@ package String::Obfuscate {
 
     my $sub = eval qq<
       sub (\$string) {
-        \$string =~ tr`$from_chars`$to_chars`;
+        \$string =~ tr`\Q$from_chars\E`\Q$to_chars\E`;
         return \$string;
       };
     > or die $@;
@@ -41,8 +42,8 @@ package String::Obfuscate {
     return $sub;
   }
 
-  sub obfuscate ($self, $string, %params) {
-    return ref $self ? $self->{'code'}->($string) : $self->new(%params)->obfuscate($string);
+  sub obfuscate ($self, $string) {
+    $self->{'code'}->($string);
   }
   *deobfuscate = \&obfuscate;
 
