@@ -26,12 +26,17 @@ package String::Obfuscate {
     my $rng = $self->{rng};
     local $List::Util::RAND = sub { $rng->rand() };
 
-    my $from_chars = join '', List::Util::shuffle($self->{chars}->@*);
-    my $to_chars   = reverse $from_chars;
+    my sub re_escape ($str) {
+      $str =~ s{|}{\|}g;
+      $str =~ s{-}{\-}g;
+    }
+
+    my $from_chars = re_escape(join '', List::Util::shuffle($self->{chars}->@*));
+    my $to_chars   = re_escape(reverse $from_chars);
 
     my $sub = eval qq<
       sub (\$string) {
-        \$string =~ tr/$from_chars/$to_chars/;
+        \$string =~ tr|$from_chars|$to_chars|;
         return \$string;
       };
     > or die $@;
