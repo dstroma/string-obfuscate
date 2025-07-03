@@ -61,49 +61,40 @@ version 0.01
 =head1 SYNOPSIS
 
     use String::Obfuscate;
-    my $obf = String::Obfuscate->new(seed => 123); # optional seed for rand()
+    my $obf = String::Obfuscate->new(seed => 123);
     $obf->obfuscate('abc'); # 'cba'
 
 =head1 DESCRIPTION
 
-String::Obfuscate scrambles a string in a reversible way. Specify a seed for
-perl's srand() function to get a predictable result. Otherwise, the order
+String::Obfuscate "scrambles" a string in a reversible way using a substitution
+type cipher. Specify a seed for a predictable result. Otherwise, the order
 will be different with each String::Obfuscate object, but scrambled strings
 can still be reversed with the same object, or by asking the object for the
 seed used and re-using the same seed.
 
-Only ASCII letters and numbers are scrambled, making this module suitable for
-ASCII or base64 encoded strings. You can specify your own character set
-to the new constructor with the chars param, which takes a reference to an
-array of characters.
+Only ASCII letters and numbers are scrambled, but you can specify your own
+character set to the new constructor with the chars param, which takes a
+reference to an array of characters (not a string).
 
-=head1 CAVEATS
+Included in this distribution are String::Obfuscate::Base64 and
+String::Obfuscate::Base64::URL which will convert the string to base 64 using
+the standard or URL encoding, respectively, then obfuscate it. These subclasses
+do not let you specify a character set.
 
-This module will mess with perl's randon number generator seed, although it
-will be re-seeded with a new random seed afterward. If you do not want this,
-you should install one of the following supported external RNG modules:
+=head1 REQUIRED MODULES
 
-    Math::Random::MT
-    Math::Random::ISAAC  # ::XS or ::PP
+    Math::Random::ISAAC (::XS or ::PP)
 
 =head1 RATIONALE
 
 This module can also be used to obfuscate non-security-sensitive data in a way
-that is about 1,000 times faster than encrypting it. This can be used with an
-HMAC to verify authenticity, but no mechanism is built in to do so.
+that is several orders of magnitude faster than encrypting it. This can be used
+with an HMAC to verify authenticity, but no mechanism is built in to do so.
 
 =head1 CONSTRUCTOR
 
-All parameters are optional. If a seed is not specified, perl's srand()
-function will be called to seed the random number generator and obtain
-a seed.
+All parameters are optional. If a seed is not specified, one will be created.
 
     $ob = String::Obfuscate->new;
     $ob = String::Obfuscate->new(seed => 123);
     $ob = String::Obfuscate->new(chars => ['a'..'f',0..9]);
-
-=head1 OPTIONAL MODULES
-
-    Math::Random::MT
-    Math::Random::ISAAC  # ::XS or ::PP
-    Class::Unload        # for tests
