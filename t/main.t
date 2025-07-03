@@ -4,11 +4,11 @@ use Test::More;
 
 require_ok('String::Obfuscate');
 require_ok('String::Obfuscate::Base64');
-require_ok('String::Obfuscate::Base64URL');
+require_ok('String::Obfuscate::Base64::URL');
 
 do_test('String::Obfuscate');
 do_test('String::Obfuscate::Base64');
-do_test('String::Obfuscate::Base64URL');
+do_test('String::Obfuscate::Base64::URL');
 
 done_testing();
 
