@@ -3,7 +3,7 @@ package String::Obfuscate::Base64::URL {
   use parent 'String::Obfuscate::Base64';
 
   sub obfuscate ($self, $str) {
-    $str = $self->SUPER::obfuscate($string);
+    $str = $self->SUPER::obfuscate($str);
     $str =~ tr`+/=\n`-_`d; # + to - and / to _ and delete newline and =
     $str;
   }

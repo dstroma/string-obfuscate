@@ -19,10 +19,10 @@ sub do_test ($class) {
   foreach my $str (qw(a ab abc abcd abcde 1 12 123 a! b? c?!)) {
     # Check new() successfully returns object
     my $obj = $class->new();
-    is(ref $obj => $class, "new $class object");
+    is(ref $obj => $class, "new $class object without seed");
 
     # Get auto seed
-    ok($obj->seed, 'new object has seed');
+    ok($obj->seed, 'new object has seed ' . $obj->seed);
     ok($obj->seed =~ m/^\d+$/, 'seed is a number');
 
     # Obfuscate and deobfuscate a string

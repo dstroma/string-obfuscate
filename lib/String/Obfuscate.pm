@@ -19,7 +19,7 @@ package String::Obfuscate {
 
     my $self = bless { }, $class;
     $self->{chars} = $chars || STD_CHARS;
-    $self->{seed}  = $seed  // time();
+    $self->{seed}  = $seed  // make_seed();
     $self->{rng}   = Math::Random::ISAAC->new($self->{seed});
     $self->{code}  = $self->make_obfuscation_sub;
     return $self;
@@ -46,6 +46,12 @@ package String::Obfuscate {
     $self->{'code'}->($string);
   }
   *deobfuscate = \&obfuscate;
+
+  sub make_seed () {
+    my $n = $$ . time();
+    $n = int($n / 2) while $n > MAX_SEED;
+    return $n;
+  }
 
   sub seed ($self) { $self->{'seed'} }
 }
