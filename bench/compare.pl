@@ -42,22 +42,7 @@ sub vig ($str) {
 }
 
 sub obs ($str) {
-  state $obs = String::Obfuscate->new(rng => 'perl', seed => time());
-  $obs->deobfuscate($obs->obfuscate($str));
-}
-
-sub obs_mt ($str) {
-  state $obs = String::Obfuscate->new(rng => 'Math::Random::MT', seed => time());
-  $obs->deobfuscate($obs->obfuscate($str));
-}
-
-sub obs_ixs ($str) {
-  state $obs = String::Obfuscate->new(rng => 'Math::Random::ISAAC::XS', seed => time());
-  $obs->deobfuscate($obs->obfuscate($str));
-}
-
-sub obs_ipp ($str) {
-  state $obs = String::Obfuscate->new(rng => 'Math::Random::ISAAC::PP', seed => time());
+  state $obs = String::Obfuscate->new(seed => 8675309);
   $obs->deobfuscate($obs->obfuscate($str));
 }
 
@@ -72,16 +57,22 @@ if (my $test = 1) {
   say substr($_, 0, 32) . " == " . substr(obs($_), 0, 32)   for @strings;
 }
 
-
-#my $obf = String::Obfuscate->new(seed => 0.1234, use_Math_Random_MT => 0);
-
 cmpthese(10_000, {
   cbc     => sub { cbc($_)     for @strings },
   cvs     => sub { cvs($_)     for @strings },
   vig     => sub { vig($_)     for @strings },
   rot47   => sub { rot47   ($_) for @strings },
   obs     => sub { obs     ($_) for @strings },
-  obs_mt  => sub { obs_mt  ($_) for @strings },
-  obs_ixs => sub { obs_ixs ($_) for @strings },
-  obs_ipp => sub { obs_ipp ($_) for @strings },
 });
+
+=pod
+
+Results:
+
+            Rate    vig    cvs    cbc  rot47    obs
+  vig      395/s     --   -70%   -78%  -100%  -100%
+  cvs     1339/s   239%     --   -24%   -99%   -99%
+  cbc     1770/s   348%    32%     --   -99%   -99%
+  rot47 200000/s 50520% 14840% 11200%     --     0%
+  obs   200000/s 50520% 14840% 11200%     0%     --
+
