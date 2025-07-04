@@ -1,79 +1,53 @@
 use v5.36;
 package String::Obfuscate {
   use List::Util ();
-  use Module::Loaded qw(is_loaded);
+  use Math::Random::ISAAC ();
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
-  use constant MAX_SEED  => 4_294_967_295;
-
-  our @RNG_CLASSES = qw(
-    Math::Random::MT
-    Math::Random::ISAAC::XS
-    Math::Random::ISAAC::PP
-  );
-
-  # Maybe a class is already loaded?
-  my @loaded_rng_classes = grep { is_loaded($_) } @RNG_CLASSES;
+  use constant MAX_SEED  => 2**32;
 
   sub new ($class, %params) {
     my $seed  = delete $params{'seed'};  # optional seed
     my $chars = delete $params{'chars'}; # optional arrayref to char list
-    my $rng   = delete $params{'rng'};   # force class or object, or pp
+    #my $rng   = delete $params{'rng'};   # optional RNG object
 
     die 'unexpected param(s): ' . join(', ', keys %params)
       if keys %params;
     die 'chars must be a ref to an array of characters'
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
-
-    # Check if user wants to use a specific object or perl builtin rand()?
-    my $rng_obj      = ref $rng ? $rng : undef;
-    my $use_perl_rng = (!$rng_obj and $rng and ($rng eq 'perl'));
-
-    # Maybe load external RNG module
-    unless ($use_perl_rng or $rng_obj) {
-      my @rngs_to_try = $rng ? ($rng) : (@loaded_rng_classes, @RNG_CLASSES);
-      foreach my $i (@rngs_to_try) {
-        eval {
-          eval "require $i" unless is_loaded($i);
-          $rng_obj = $i->new(defined $seed ? ($seed) : ());
-        };
-        last if $rng_obj;
-      }
-    }
-
-    die "could not utilize rng class or object $rng"
-      if $rng and $rng ne 'perl' and not $rng_obj;
+    #die 'rng must be an object'
+    #  if $rng and not ref $rng and not $rng->can('rand');
 
     my $self = bless { }, $class;
-    $self->{rng}   = $rng_obj if $rng_obj;
     $self->{chars} = $chars || STD_CHARS;
-    $self->{seed}  = $seed  // make_seed();
+    $self->{seed}  = $seed  // time();
+    $self->{rng}   = Math::Random::ISAAC->new($self->{seed});
     $self->{code}  = $self->make_obfuscation_sub;
     return $self;
   }
 
   sub make_obfuscation_sub ($self) {
-    srand($self->seed) unless $self->{'rng'};
-    local $List::Util::RAND = sub { $self->{'rng'}->rand(@_) } if $self->{'rng'};
-    my $from_chars = join '', List::Util::shuffle($self->{'chars'}->@*);
-    srand() unless $self->{'rng'}; # Reseed to not affect outside code
+    my $rng = $self->{rng};
+    local $List::Util::RAND = sub { $rng->rand() };
 
-    my $to_chars = reverse $from_chars;
+    my $from_chars = join('', List::Util::shuffle($self->{chars}->@*));
+    my $to_chars   = scalar(reverse($from_chars));
+
     my $sub = eval qq<
       sub (\$string) {
-        \$string =~ tr/$from_chars/$to_chars/;
+        \$string =~ tr`\Q$from_chars\E`\Q$to_chars\E`;
         return \$string;
       };
     > or die $@;
+
     return $sub;
   }
 
-  sub obfuscate ($self, $string, %params) {
-    return ref $self ? $self->{'code'}->($string) : $self->new(%params)->obfuscate($string);
+  sub obfuscate ($self, $string) {
+    $self->{'code'}->($string);
   }
   *deobfuscate = \&obfuscate;
 
-  sub make_seed () { int(rand(MAX_SEED)) }
-  sub seed ($self) { $self->{'seed'}     }
+  sub seed ($self) { $self->{'seed'} }
 }
 
 =head1 NAME
@@ -87,49 +61,40 @@ version 0.01
 =head1 SYNOPSIS
 
     use String::Obfuscate;
-    my $obf = String::Obfuscate->new(seed => 123); # optional seed for rand()
+    my $obf = String::Obfuscate->new(seed => 123);
     $obf->obfuscate('abc'); # 'cba'
 
 =head1 DESCRIPTION
 
-String::Obfuscate scrambles a string in a reversible way. Specify a seed for
-perl's srand() function to get a predictable result. Otherwise, the order
+String::Obfuscate "scrambles" a string in a reversible way using a substitution
+type cipher. Specify a seed for a predictable result. Otherwise, the order
 will be different with each String::Obfuscate object, but scrambled strings
 can still be reversed with the same object, or by asking the object for the
 seed used and re-using the same seed.
 
-Only ASCII letters and numbers are scrambled, making this module suitable for
-ASCII or base64 encoded strings. You can specify your own character set
-to the new constructor with the chars param, which takes a reference to an
-array of characters.
+Only ASCII letters and numbers are scrambled, but you can specify your own
+character set to the new constructor with the chars param, which takes a
+reference to an array of characters (not a string).
 
-=head1 CAVEATS
+Included in this distribution are String::Obfuscate::Base64 and
+String::Obfuscate::Base64::URL which will convert the string to base 64 using
+the standard or URL encoding, respectively, then obfuscate it. These subclasses
+do not let you specify a character set.
 
-This module will mess with perl's randon number generator seed, although it
-will be re-seeded with a new random seed afterward. If you do not want this,
-you should install one of the following supported external RNG modules:
+=head1 REQUIRED MODULES
 
-    Math::Random::MT
-    Math::Random::ISAAC  # ::XS or ::PP
+    Math::Random::ISAAC (::XS or ::PP)
 
 =head1 RATIONALE
 
 This module can also be used to obfuscate non-security-sensitive data in a way
-that is about 1,000 times faster than encrypting it. This can be used with an
-HMAC to verify authenticity, but no mechanism is built in to do so.
+that is several orders of magnitude faster than encrypting it. This can be used
+with an HMAC to verify authenticity, but no mechanism is built in to do so.
 
 =head1 CONSTRUCTOR
 
-All parameters are optional. If a seed is not specified, perl's srand()
-function will be called to seed the random number generator and obtain
-a seed.
+All parameters are optional. If a seed is not specified, one will be created.
 
     $ob = String::Obfuscate->new;
     $ob = String::Obfuscate->new(seed => 123);
     $ob = String::Obfuscate->new(chars => ['a'..'f',0..9]);
-
-=head1 OPTIONAL MODULES
-
-    Math::Random::MT
-    Math::Random::ISAAC  # ::XS or ::PP
-    Class::Unload        # for tests

@@ -1,51 +1,31 @@
 #!perl
 use v5.36;
 use Test::More;
-use Module::Loaded qw(is_loaded);
-our @rng_classes = qw(Dummy Math::Random::MT Math::Random::ISAAC::XS Math::Random::ISAAC::PP);
 
-eval { require Class::Unload; }
-  or warn "Class::Unload is not available, some tests will be skipped";
+require_ok('String::Obfuscate');
+require_ok('String::Obfuscate::Base64');
+require_ok('String::Obfuscate::Base64::URL');
+
+do_test('String::Obfuscate');
+do_test('String::Obfuscate::Base64');
+do_test('String::Obfuscate::Base64::URL');
+
+done_testing();
 
 # Require test
-require_ok('String::Obfuscate');
+sub do_test ($class) {
+  say "Testing $class...";
 
-# Loop through RNG modules
-foreach my $i (undef, @rng_classes) {
-  warn "$i module not available, skipping" && next
-    if $i and not eval "require $i; 1";
-
-  # If we pre-load an RNG module, String::Obfuscate should use that one
-  # This test is optional and only performed if Class::Unload is available
-  if ($i and $i ne 'Dummy' and is_loaded('Class::Unload')) {
-    Class::Unload->unload($_) for (@rng_classes, 'String::Obfuscate');
-    eval "require $i" or die $@;
-    eval "require String::Obfuscate" or die $@;
-    # use Data::Dumper; warn Dumper { INC => [ sort keys %INC ] };
-    my $obj = String::Obfuscate->new();
-    my $rng_type = ref $obj->{rng};
-    ok($rng_type eq $i, "Used preloaded RNG module $i (got $rng_type)");
-  }
-
-  # Call new() with specific RNG module or perl
-  {
+  foreach my $str (qw(a ab abc abcd abcde 1 12 123 a! b? c?!)) {
     # Check new() successfully returns object
-    my $obj = String::Obfuscate->new(rng => $i || 'perl');
-    ok(ref $obj, 'new object');
-
-    # Check object uses the requested RNG module
-    if ($i) {
-      ok(ref $obj->{rng} eq $i, 'The requested RNG module is correct -- ' . $i);
-    } else {
-      ok(not($obj->{rng}), 'Using perl builtin rand');
-    }
+    my $obj = $class->new();
+    is(ref $obj => $class, "new $class object");
 
     # Get auto seed
     ok($obj->seed, 'new object has seed');
     ok($obj->seed =~ m/^\d+$/, 'seed is a number');
 
     # Obfuscate and deobfuscate a string
-    my $str = 'abcdefg'; #say $str;
     my $obf_str = $obj->obfuscate($str); #say $obf_str;
     ok($obf_str, 'obfuscated string is true');
     ok($obf_str ne $str, 'obfuscated string is not original');
@@ -53,40 +33,56 @@ foreach my $i (undef, @rng_classes) {
   }
 
   # Canned seed
-  {
-    my $seed = 123456;
+  foreach my $seed (123456, $$, time()) {
     my $in   = 'abcdefgABCDEFG12345';
-    my $out  = String::Obfuscate->obfuscate($in, seed => $seed);
-    warn $out;
-    my $obj = String::Obfuscate->new(seed => $seed);
-    ok(ref $obj, 'create object with specified seed');
+    my $out  = $class->new(seed => $seed)->obfuscate($in);
+    my $obj  = $class->new(seed => $seed);
+
+    ok(ref $obj,                         'create object with specified seed');
 
     # Get seed
-    ok($obj->seed == $seed, 'seed is equal to given seed');
+    is($obj->seed              => $seed, 'seed is equal to given seed');
 
     # Obfuscate and deobfiscate a string
-    ok($obj->obfuscate($in), 'canned seed obfuscate');
-    ok($obj->obfuscate($in) eq $out, 'canned seed obfuscated string is expected string');
-    ok($obj->deobfuscate($out) eq $in, 'canned seed obfuscated string is reversed');
+    ok($obj->obfuscate($in),             'specified seed obfuscate');
+    is($obj->obfuscate($in)    => $out,  'specified seed obfuscated string is repeatable');
+    is($obj->deobfuscate($out) => $in,   'specified seed obfuscated string is reversed');
   }
 
   # Custom charset
-  {
-    my $obj = String::Obfuscate->new(chars => ['a'..'f']);
-    ok($obj->obfuscate('zxy123') eq 'zxy123', 'characters not in charset not scrambled'); # say $obj->obfuscate('zxy123');
+  unless ($class =~ m/Base64/) {
+    my $obj = $class->new(chars => ['a'..'f']);
+    ok($obj->obfuscate('zxy123') eq 'zxy123', 'characters not in charset not scrambled');
     ok($obj->obfuscate('abcdef') ne 'abcdef', 'characters in charset are scrambled');
   }
 
-  # Class method interface
-  {
-    ok(String::Obfuscate->obfuscate('abc') ne 'abc', 'obfuscate using class method');
-    ok(
-      String::Obfuscate->deobfuscate(
-        String::Obfuscate->obfuscate('abc123ABC', seed => 3141529),
-        seed => 3141529
-      ) eq 'abc123ABC', 'obfuscate and reverse obfuscate using class method with specified seed'
-    );
+  # Crazy characters
+  unless ($class =~ m/Base64/) {
+    my $ok    = 1;
+    my @chars = map { chr($_) } 0..255;
+    my $str   = join '', @chars; # q{~!@#$%^&*()_+`1234567890-={}|[]\;',./:"<>?]abcdefg123456};
+    for my $i (0..1_000) {
+      my $obj = $class->new(seed => $i, chars => \@chars);
+      my $enc = $obj->obfuscate($str);
+      my $dec = $obj->deobfuscate($enc);
+      unless ($dec eq $str) {
+        $ok = 0;
+        last;
+      }
+    }
+    ok($ok, "nonprintable string and charset test");
   }
-}
 
-done_testing();
+  # Class method interface
+  # FEATURE REMOVED
+  #{
+  #  ok($class->obfuscate('abc') ne 'abc', 'obfuscate using class method');
+  #  ok(
+  #    $class->deobfuscate(
+  #      $class->obfuscate('abc123ABC', seed => 3141529),
+  #      seed => 3141529
+  #    ) eq 'abc123ABC', 'obfuscate and reverse obfuscate using class method with specified seed'
+  #  );
+  #}
+
+}
