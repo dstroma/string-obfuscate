@@ -3,58 +3,58 @@ package String::Obfuscate {
   use List::Util ();
   use Math::Random::ISAAC ();
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
-  use constant MAX_SEED  => 2**32;
 
   sub new ($class, %params) {
     my $seed  = delete $params{'seed'};  # optional seed
     my $chars = delete $params{'chars'}; # optional arrayref to char list
-    #my $rng   = delete $params{'rng'};   # optional RNG object
 
     die 'unexpected param(s): ' . join(', ', keys %params)
       if keys %params;
     die 'chars must be a ref to an array of characters'
       if $chars and (not ref $chars or ref $chars ne 'ARRAY');
-    #die 'rng must be an object'
-    #  if $rng and not ref $rng and not $rng->can('rand');
 
-    my $self = bless { }, $class;
-    $self->{chars} = $chars || STD_CHARS;
-    $self->{seed}  = $seed  // make_seed();
-    $self->{rng}   = Math::Random::ISAAC->new($self->{seed});
-    $self->{code}  = $self->make_obfuscation_sub;
-    return $self;
+    $seed = make_seed() if !defined $seed;
+    $seed = [$seed]     if !ref $seed;
+
+    my $self = bless {
+      chars => $chars || STD_CHARS,
+      seed  => $seed
+    }, $class;
+
+    $self->make_codec;
   }
 
-  sub make_obfuscation_sub ($self) {
-    my $rng = $self->{rng};
+  sub make_codec ($self) {
+    my $rng = Math::Random::ISAAC->new($self->seed->@*);
     local $List::Util::RAND = sub { $rng->rand() };
 
-    my $from_chars = join('', List::Util::shuffle($self->{chars}->@*));
-    my $to_chars   = scalar(reverse($from_chars));
+    my $fr_chars = quotemeta(join('', $self->{chars}->@*));
+    my $to_chars = quotemeta(join('', List::Util::shuffle($self->{chars}->@*)));
 
-    my $sub = eval qq<
+    $self->{encoder} = eval qq<
       sub (\$string) {
-        \$string =~ tr`\Q$from_chars\E`\Q$to_chars\E`;
+        \$string =~ tr|$fr_chars|$to_chars|;
         return \$string;
       };
     > or die $@;
 
-    return $sub;
+    $self->{decoder} = eval qq<
+      sub (\$string) {
+        \$string =~ tr|$to_chars|$fr_chars|;
+        return \$string;
+      };
+    > or die $@;
+
+    return $self;
   }
 
-  sub obfuscate ($self, $string) {
-    $self->{'code'}->($string);
-  }
-  *deobfuscate = \&obfuscate;
-
-  sub make_seed () {
-    my $n = $$ . time();
-    $n = int($n / 2) while $n > MAX_SEED;
-    return $n;
-  }
-
-  sub seed ($self) { $self->{'seed'} }
+  sub obfuscate   ($self, $string) { $self->{encoder}->($string) }
+  sub deobfuscate ($self, $string) { $self->{decoder}->($string) }
+  sub make_seed   ()               { [time(), $$]    }
+  sub seed        ($self)          { $self->{'seed'} }
 }
+
+1;
 
 =head1 NAME
 
