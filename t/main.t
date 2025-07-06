@@ -24,12 +24,13 @@ sub do_test ($class) {
 
     # Get auto seed
     ok($obj->seed, 'new object has seed ' . $obj->seed);
-    ok($obj->seed =~ m/^\d+$/, 'seed is a number');
+    #ok($obj->seed =~ m/^\d+$/, 'seed is a number');
+    ok(ref $obj->seed eq 'ARRAY', 'seed is an arrayref');
 
     # Obfuscate and deobfuscate a string
     my $obf_str = $obj->obfuscate($str); #say $obf_str;
     ok($obf_str, 'obfuscated string is true');
-    ok($obf_str ne $str, 'obfuscated string is not original');
+    ok($obf_str ne $str, "obfuscated string is different from the original");
     ok($obj->deobfuscate($obf_str) eq $str, 'obfuscated string can be reversed');
   }
 
@@ -42,7 +43,7 @@ sub do_test ($class) {
     ok(ref $obj,                         'create object with specified seed');
 
     # Get seed
-    is($obj->seed              => $seed, 'seed is equal to given seed');
+    is_deeply($obj->seed              => [$seed], 'seed is equal to given seed');
 
     # Obfuscate and deobfiscate a string
     ok($obj->obfuscate($in),             'specified seed obfuscate');
