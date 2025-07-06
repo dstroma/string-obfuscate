@@ -29,12 +29,14 @@ package String::Obfuscate {
     my $rng = $self->{rng};
     local $List::Util::RAND = sub { $rng->rand() };
 
-    my $from_chars = join('', List::Util::shuffle($self->{chars}->@*));
-    my $to_chars   = scalar(reverse($from_chars));
+    my $fr_chars = join('', List::Util::shuffle($self->{chars}->@*));
+    my $to_chars = scalar(reverse($fr_chars));
+    $fr_chars    = quotemeta($fr_chars);
+    $to_chars    = quotemeta($to_chars);
 
     my $sub = eval qq<
       sub (\$string) {
-        \$string =~ tr`\Q$from_chars\E`\Q$to_chars\E`;
+        \$string =~ tr|$fr_chars|$to_chars|;
         return \$string;
       };
     > or die $@;
