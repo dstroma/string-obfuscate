@@ -28,7 +28,7 @@ package String::Obfuscate {
     my $rng      = Math::Random::ISAAC->new($self->seed->@*);
     my $rand_fn  = sub { $rng->rand() };
     my $fr_chars = quotemeta(join('', $self->{chars}->@*));
-    my $to_chars = quotemeta(join('', my_shuffle($rand_fn, $self->{chars}->@*)));
+    my $to_chars = quotemeta(join('', _shuffle($rand_fn, $self->{chars}->@*)));
 
     $self->{encoder} = eval qq<
       sub (\$string) {
@@ -47,7 +47,7 @@ package String::Obfuscate {
     return $self;
   }
 
-  sub my_shuffle ($rand_func, @array) {
+  sub _shuffle ($rand_func, @array) {
     if ($List::Util::XS::VERSION) {
       local $List::Util::RAND = $rand_func;
       return List::Util::shuffle(@array);
