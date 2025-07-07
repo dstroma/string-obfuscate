@@ -24,11 +24,17 @@ package String::Obfuscate {
     $self->make_codec;
   }
 
-  sub make_codec ($self) {
+  sub chars_shuffled ($self) {
+    return $self->{chars_shuffled} if exists $self->{chars_shuffled};
     my $rng      = Math::Random::ISAAC->new($self->seed->@*);
     my $rand_fn  = sub { $rng->rand() };
-    my $fr_chars = quotemeta(join('', $self->{chars}->@*));
-    my $to_chars = quotemeta(join('', _shuffle($rand_fn, $self->{chars}->@*)));
+    my @chars_s  = _shuffle($rand_fn, $self->{chars}->@*);
+    $self->{chars_shuffled} = \@chars_s;
+  }
+
+  sub make_codec ($self) {
+    my $fr_chars = quotemeta(join '', $self->chars->@*         );
+    my $to_chars = quotemeta(join '', $self->chars_shuffled->@*);
 
     $self->{encoder} = eval qq<
       sub (\$string) {
@@ -64,6 +70,7 @@ package String::Obfuscate {
 
   sub make_seed   ()               { [time(), $$]    }
   sub seed        ($self)          { $self->{'seed'} }
+  sub chars       ($self)          { $self->{chars}  }
   sub obfuscate   ($self, $string) { $self->{encoder}->($string) }
   sub deobfuscate ($self, $string) { $self->{decoder}->($string) }
 }
@@ -190,6 +197,14 @@ Returns the seed. Regardless of how the seed was originally supplied, this
 method will always return an arrayref.
 
 Note the seed is set at object creation and cannot be changed later.
+
+=item B<chars()>
+
+=item B<chars_shuffled()>
+
+Returns the source or destination character list as an arrayref.
+
+These are set at object creation and cannot be changed later.
 
 =item B<obfuscate($string)>
 
