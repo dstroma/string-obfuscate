@@ -1,8 +1,8 @@
 use v5.36;
 package String::Obfuscate {
-  use List::Util ();
   use Math::Random::ISAAC ();
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
+  eval { require List::Util::XS };
 
   sub new ($class, %params) {
     my $seed  = delete $params{'seed'};  # optional seed
@@ -25,11 +25,10 @@ package String::Obfuscate {
   }
 
   sub make_codec ($self) {
-    my $rng = Math::Random::ISAAC->new($self->seed->@*);
-    local $List::Util::RAND = sub { $rng->rand() };
-
+    my $rng      = Math::Random::ISAAC->new($self->seed->@*);
+    my $rand_fn  = sub { $rng->rand() };
     my $fr_chars = quotemeta(join('', $self->{chars}->@*));
-    my $to_chars = quotemeta(join('', List::Util::shuffle($self->{chars}->@*)));
+    my $to_chars = quotemeta(join('', my_shuffle($rand_fn, $self->{chars}->@*)));
 
     $self->{encoder} = eval qq<
       sub (\$string) {
@@ -48,10 +47,25 @@ package String::Obfuscate {
     return $self;
   }
 
-  sub obfuscate   ($self, $string) { $self->{encoder}->($string) }
-  sub deobfuscate ($self, $string) { $self->{decoder}->($string) }
+  sub my_shuffle ($rand_func, @array) {
+    if ($List::Util::XS::VERSION) {
+      local $List::Util::RAND = $rand_func;
+      return List::Util::shuffle(@array);
+    } else {
+      for (my $idx = scalar @array; $idx > 1;) {
+        my $swap = int($rand_func->() * $idx--);
+        my $tmp = $array[$swap];
+        $array[$swap] = $array[$idx];
+        $array[$idx]  = $tmp;
+      }
+      return @array;
+    }
+  }
+
   sub make_seed   ()               { [time(), $$]    }
   sub seed        ($self)          { $self->{'seed'} }
+  sub obfuscate   ($self, $string) { $self->{encoder}->($string) }
+  sub deobfuscate ($self, $string) { $self->{decoder}->($string) }
 }
 
 1;
