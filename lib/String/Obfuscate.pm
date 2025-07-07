@@ -82,7 +82,7 @@ version 0.01
 
     use String::Obfuscate;
     my $obf = String::Obfuscate->new(seed => 123);
-    $obf->obfuscate('abc'); # 'cba'
+    $obf->obfuscate('hello'); # 'xn88Y'
 
 =head1 DESCRIPTION
 
