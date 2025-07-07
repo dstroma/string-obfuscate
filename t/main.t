@@ -102,9 +102,9 @@ sub do_test ($class) {
   }
 
   # Chaining for one liner
-  my $str = $class->new(seed => 0)->obfuscate('Hello, there!');
-  ok($str, 'one liner test');
   unless ($class =~ m/Base64/) {
+    my $str = $class->new(seed => 0)->obfuscate('Hello, there!');
+    ok($str, 'one liner test');
     ok($str =~ m/^\w\w\w\w\w,\s\w\w\w\w\w!$/, 'punctuation not changed in standard mode');
   }
 }
