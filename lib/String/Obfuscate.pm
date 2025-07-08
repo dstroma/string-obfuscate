@@ -25,7 +25,7 @@ package String::Obfuscate {
   }
 
   sub chars_shuffled ($self) {
-    return $self->{chars_shuffled} if exists $self->{chars_shuffled};
+    return $self->{chars_shuffled} if $self->{chars_shuffled};
     my $rng      = Math::Random::ISAAC->new($self->seed->@*);
     my $rand_fn  = sub { $rng->rand() };
     my @chars_s  = _shuffle($rand_fn, $self->{chars}->@*);
