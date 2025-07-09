@@ -5,11 +5,8 @@ package String::Obfuscate::Base64 {
   use MIME::Base64 qw(encode_base64 decode_base64);
 
   sub new ($class, %params) {
-    die 'Do not specify a custom character list in Base64 mode'
-      if exists $params{'chars'};
-
-    $params{'chars'} = B64_CHARS;
-    $class->SUPER::new(%params);
+    die 'Cannot use custom chars in Base64 mode' if exists $params{'chars'};
+    $class->SUPER::new(chars => B64_CHARS, %params);
   }
 
   sub obfuscate   ($self, $str) { $self->SUPER::obfuscate(encode_base64($str)) }
