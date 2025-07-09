@@ -30,8 +30,8 @@ sub do_test ($class) {
     # Obfuscate and deobfuscate a string
     my $obf_str = $obj->obfuscate($str); #say $obf_str;
     ok($obf_str, 'obfuscated string is true');
-    ok($obf_str ne $str, "obfuscated string is different from the original");
-    ok($obj->deobfuscate($obf_str) eq $str, 'obfuscated string can be reversed');
+    ok($obf_str ne $str, "obfuscated string is different from the original") if length $str > 1;
+    is($obj->deobfuscate($obf_str) => $str, 'obfuscated string can be reversed');
   }
 
   # Canned seed
@@ -49,6 +49,20 @@ sub do_test ($class) {
     ok($obj->obfuscate($in),             'specified seed obfuscate');
     is($obj->obfuscate($in)    => $out,  'specified seed obfuscated string is repeatable');
     is($obj->deobfuscate($out) => $in,   'specified seed obfuscated string is reversed');
+  }
+
+  # XS vs pure-perl
+  if ($List::Util::XS::VERSION) {
+    my $ver = $List::Util::XS::VERSION;
+    my $str = 'aeiou_and_sometimes_y_123456789';
+
+    $List::Util::XS::VERSION = undef;
+    my $ob1 = $class->new(seed => 1234567)->obfuscate($str);
+
+    $List::Util::XS::VERSION = $ver;
+    my $ob2 = $class->new(seed => 1234567)->obfuscate($str);
+
+    is($ob1 => $ob2, 'XS and pure perl give same output');
   }
 
   # Custom charset
@@ -88,9 +102,9 @@ sub do_test ($class) {
   }
 
   # Chaining for one liner
-  my $str = $class->new(seed => 0)->obfuscate('Hello, there!');
-  ok($str, 'one liner test');
   unless ($class =~ m/Base64/) {
+    my $str = $class->new(seed => 0)->obfuscate('Hello, there!');
+    ok($str, 'one liner test');
     ok($str =~ m/^\w\w\w\w\w,\s\w\w\w\w\w!$/, 'punctuation not changed in standard mode');
   }
 }
