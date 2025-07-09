@@ -29,7 +29,7 @@ sub do_test ($class) {
 
     # Obfuscate and deobfuscate a string
     my $obf_str = $obj->obfuscate($str); #say $obf_str;
-    ok($obf_str, 'obfuscated string is true');
+    ok(length $obf_str, 'obfuscated string has length');
     ok($obf_str ne $str, "obfuscated string is different from the original") if length $str > 1;
     is($obj->deobfuscate($obf_str) => $str, 'obfuscated string can be reversed');
   }
