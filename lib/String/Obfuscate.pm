@@ -25,11 +25,10 @@ package String::Obfuscate {
   }
 
   sub chars_shuffled ($self) {
-    return $self->{chars_shuffled} if $self->{chars_shuffled};
-    my $rng      = Math::Random::ISAAC->new($self->seed->@*);
-    my $rand_fn  = sub { $rng->rand() };
-    my @chars_s  = _shuffle($rand_fn, $self->{chars}->@*);
-    $self->{chars_shuffled} = \@chars_s;
+    my $rng     = Math::Random::ISAAC->new($self->seed->@*);
+    my $rand_fn = sub { $rng->rand() };
+    my @chars_s = shuffle($rand_fn, $self->chars);
+    return \@chars_s;
   }
 
   sub make_codec ($self) {
@@ -53,19 +52,20 @@ package String::Obfuscate {
     return $self;
   }
 
-  sub _shuffle ($rand_func, @array) {
-    if ($List::Util::XS::VERSION) {
-      local $List::Util::RAND = $rand_func;
-      return List::Util::shuffle(@array);
-    } else {
-      for (my $idx = scalar @array; $idx > 1;) {
-        my $swap_idx      = int($rand_func->() * $idx--);
-        my $tmp_val       = $array[$swap_idx];
-        $array[$swap_idx] = $array[$idx];
-        $array[$idx]      = $tmp_val;
-      }
-      return @array;
+  sub shuffle ($rand_func, $arrayref) {
+    return shuffle_pp($rand_func, @$arrayref) unless $List::Util::XS::VERSION;
+    local $List::Util::RAND = $rand_func;
+    return List::Util::shuffle(@$arrayref);
+  }
+
+  sub shuffle_pp ($rand_func, @array) {
+    for (my $idx = scalar @array; $idx > 1;) {
+      my $swap_idx      = int($rand_func->() * $idx--);
+      my $tmp_val       = $array[$swap_idx];
+      $array[$swap_idx] = $array[$idx];
+      $array[$idx]      = $tmp_val;
     }
+    return @array;
   }
 
   sub make_seed   ()               { [time(), $$]    }
