@@ -6,12 +6,15 @@ package String::Obfuscate {
 
   sub new ($class, %params) {
     my $seed  = delete $params{'seed'};  # optional seed
-    my $chars = delete $params{'chars'}; # optional arrayref to char list
+    my $chars = delete $params{'chars'}; # optional char list
+
+    if ($chars) {
+      $chars = [ split '', $$chars ] if ref $chars eq 'SCALAR';
+      $chars = [ split '', $chars  ] if not ref $chars;
+    }
 
     die 'unexpected param(s): ' . join(', ', keys %params)
       if keys %params;
-    die 'chars must be a ref to an array of characters'
-      if $chars and (not ref $chars or ref $chars ne 'ARRAY');
 
     $seed = make_seed() if !defined $seed;
     $seed = [$seed]     if !ref $seed;
