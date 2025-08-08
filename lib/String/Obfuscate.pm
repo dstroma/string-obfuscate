@@ -76,20 +76,6 @@ package String::Obfuscate {
   sub chars       ($self)          { $self->{chars}  }
   sub obfuscate   ($self, $string) { $self->{encoder}->($string) }
   sub deobfuscate ($self, $string) { $self->{decoder}->($string) }
-
-  sub obfuscate2  ($self, $string) {
-    for (my $i = 0; $i <= length $string; $i+=2) {
-      $string = substr($string, 0, $i) . $self->obfuscate(substr($string, $i));
-    }
-    return $string;
-  }
-
-  sub deobfuscate2 ($self, $string) {
-    for (my $i = length $string; $i >= 0; $i-=2) {
-      $string = substr($string, 0, $i) . $self->deobfuscate(substr($string, $i));
-    }
-    return $string;
-  }
 }
 
 1;
