@@ -5,8 +5,9 @@ package String::Obfuscate {
   eval { require List::Util::XS };
 
   sub new ($class, %params) {
-    my $seed  = delete $params{'seed'};  # optional seed
-    my $chars = delete $params{'chars'}; # optional char list
+    my $seed   = delete $params{'seed'};  # optional seed
+    my $chars  = delete $params{'chars'}; # optional char list
+    my $retsrc = delete $params{'retain_source'};
 
     if ($chars) {
       $chars = [ split '', $$chars ] if ref $chars eq 'SCALAR';
@@ -21,7 +22,8 @@ package String::Obfuscate {
 
     my $self = bless {
       chars => $chars || STD_CHARS,
-      seed  => $seed
+      seed  => $seed,
+      $retsrc ? (retain_source => 1) : (),
     }, $class;
 
     $self->make_codec;
@@ -38,19 +40,17 @@ package String::Obfuscate {
     my $fr_chars = quotemeta(join '', $self->chars->@*         );
     my $to_chars = quotemeta(join '', $self->chars_shuffled->@*);
 
-    $self->{encoder} = eval qq<
-      sub (\$string) {
-        \$string =~ tr|$fr_chars|$to_chars|;
-        return \$string;
-      };
-    > or die $@;
+    my ($enc_src, $dec_src);
 
-    $self->{decoder} = eval qq<
-      sub (\$string) {
-        \$string =~ tr|$to_chars|$fr_chars|;
-        return \$string;
-      };
-    > or die $@;
+    $self->{encoder} = eval($enc_src = qq<
+      sub (\$string) { \$string =~ tr|$fr_chars|$to_chars|r };
+    >) or die $@;
+
+    $self->{decoder} = eval($dec_src = qq<
+      sub (\$string) { \$string =~ tr|$to_chars|$fr_chars|r };
+    >) or die $@;
+
+    $self->{src} = [$enc_src, $dec_src] if $self->{retain_source};
 
     return $self;
   }
@@ -69,6 +69,14 @@ package String::Obfuscate {
       $array[$idx]      = $tmp_val;
     }
     return @array;
+  }
+
+  sub dump_source ($self) {
+    if (!$self->{src}) {
+      $self->{retain_source} = 1;
+      $self->make_codec;
+    }
+    return @{$self->{src}};
   }
 
   sub make_seed   ()               { [time(), $$]    }
