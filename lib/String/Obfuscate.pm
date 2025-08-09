@@ -2,7 +2,22 @@ use v5.36;
 package String::Obfuscate {
   use Math::Random::ISAAC ();
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
-  eval { require List::Util::XS };
+
+  my $pp_shuffle;
+  eval {
+    require List::Util::XS;
+    $List::Util::XS::VERSION;
+  } or do {
+    $pp_shuffle = sub ($rand_func, @array) {
+      for (my $idx = scalar @array; $idx > 1;) {
+        my $swap_idx      = int($rand_func->() * $idx--);
+        my $tmp_val       = $array[$swap_idx];
+        $array[$swap_idx] = $array[$idx];
+        $array[$idx]      = $tmp_val;
+      }
+      return @array;
+    };
+  };
 
   sub new ($class, %params) {
     my $seed   = delete $params{'seed'};  # optional seed
@@ -32,7 +47,7 @@ package String::Obfuscate {
   sub chars_shuffled ($self) {
     my $rng     = Math::Random::ISAAC->new($self->seed->@*);
     my $rand_fn = sub { $rng->rand() };
-    my @chars_s = shuffle($rand_fn, $self->chars);
+    my @chars_s = my_shuffle($rand_fn, $self->chars);
     return \@chars_s;
   }
 
@@ -55,20 +70,10 @@ package String::Obfuscate {
     return $self;
   }
 
-  sub shuffle ($rand_func, $arrayref) {
-    return shuffle_pp($rand_func, @$arrayref) unless $List::Util::XS::VERSION;
+  sub my_shuffle ($rand_func, $arrayref) {
+    return $pp_shuffle->($rand_func, @$arrayref) if $pp_shuffle;
     local $List::Util::RAND = $rand_func;
     return List::Util::shuffle(@$arrayref);
-  }
-
-  sub shuffle_pp ($rand_func, @array) {
-    for (my $idx = scalar @array; $idx > 1;) {
-      my $swap_idx      = int($rand_func->() * $idx--);
-      my $tmp_val       = $array[$swap_idx];
-      $array[$swap_idx] = $array[$idx];
-      $array[$idx]      = $tmp_val;
-    }
-    return @array;
   }
 
   sub dump_source ($self) {
