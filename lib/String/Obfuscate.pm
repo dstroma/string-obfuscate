@@ -144,6 +144,13 @@ reference to an array of characters, not a string. This is done to prevent
 excessive string copying and for a possible future feature where a plain string
 might have a special meaning, such as the name of a character set.
 
+Internally, this module generates a pair of encoding/decoding subroutines that
+use a translation regex. Once the object is created, encoding and decoding is
+very fast. However, if desired, you can dump the source code of the generated
+subroutines/regexes. This might be useful if you wish to copy and paste the
+resulting code (if you plan on using the same substitution map each time) and
+not have to load the module.
+
 Included in this distribution are String::Obfuscate::Base64 and
 String::Obfuscate::Base64::URL which will convert the string to base 64 using
 the standard or URL encoding, respectively, then obfuscate it. These subclasses
@@ -200,6 +207,11 @@ The characters used to generate the cipher, specified as an arrayref.
 The seed or seed(s). May be specified as a number or an arrayref of multiple
 seeds. The random number generator can take up to 255 seeds.
 
+=item retain_source
+
+Set to a true value, the source code of the generated encoding/decoding
+subroutines will be saved before being eval-ed.
+
 =back
 
 
@@ -221,6 +233,13 @@ Note the seed is set at object creation and cannot be changed later.
 Returns the source or destination character list as an arrayref.
 
 These are set at object creation and cannot be changed later.
+
+=item B<dump_source()>
+
+Returns a two-element array. The first element is a string representation of
+the obfuscation subroutine; the second element is the deobfuscation subroutine.
+If retain_source was not passed to new(), this method can still be called, but
+the subroutines will be re-generated.
 
 =item B<obfuscate($string)>
 
