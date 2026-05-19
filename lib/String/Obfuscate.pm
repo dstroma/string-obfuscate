@@ -10,7 +10,7 @@ package String::Obfuscate 0.01 {
   my $pp_shuffle;
   eval {
     require List::Util::XS;
-    $List::Util::XS::VERSION;
+    $List::Util::XS::VERSION >= 1.54;
   } or do {
     $pp_shuffle = sub ($rand_func, @array) {
       for (my $idx = scalar @array; $idx > 1;) {
