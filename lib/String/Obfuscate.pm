@@ -3,7 +3,7 @@ use warnings;
 use experimental 'signatures';
 use experimental 'postderef';
 
-package String::Obfuscate {
+package String::Obfuscate 0.01 {
   use Math::Random::ISAAC ();
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];
 
@@ -264,7 +264,7 @@ Returns the deobfuscated version of $string without altering the original.
 
 =head1 AUTHOR
 
-Dondi Michael Stroma (dstroma@gmail.com)
+Dondi Michael Stroma <dstroma@gmail.com>
 
 
 =head1 COPYRIGHT

@@ -1,5 +1,6 @@
-------------------------------------------------------------------------
-0.01 | Dondi Michael Stroma <dstroma@gmail.com> | 2025-??-??
+Revision history for Perl extension String-Obfuscate
 
-* First release
-  
+{{$NEXT}}
+
+    - original version
+
