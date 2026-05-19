@@ -1,4 +1,8 @@
-use v5.36;
+use v5.20;
+use warnings;
+use experimental 'signatures';
+use experimental 'postderef';
+
 package String::Obfuscate {
   use Math::Random::ISAAC ();
   use constant STD_CHARS => ['a'..'z', 'A'..'Z', 0..9];

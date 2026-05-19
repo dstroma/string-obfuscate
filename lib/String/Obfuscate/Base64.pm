@@ -1,4 +1,7 @@
-use v5.36;
+use v5.20;
+use warnings;
+use experimental 'signatures';
+
 package String::Obfuscate::Base64 {
   use parent 'String::Obfuscate';
   use constant B64_CHARS => ['a'..'z', 'A'..'Z', 0..9, '+', '/'];
