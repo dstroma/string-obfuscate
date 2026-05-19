@@ -1,5 +1,7 @@
 #!perl
-use v5.36;
+use v5.20;
+use warnings;
+use experimental 'signatures';
 use Test::More;
 
 my @classes = qw(
