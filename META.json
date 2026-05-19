@@ -41,6 +41,9 @@
          }
       },
       "runtime" : {
+         "recommends" : {
+            "List::Util::XS" : "1.54"
+         },
          "requires" : {
             "MIME::Base64" : "0",
             "Math::Random::ISAAC" : "0",
