@@ -17,7 +17,7 @@ sub do_test ($class) {
   say "Testing $class...";
   require_ok($class);
 
-  foreach my $str (qw(a ab abc abcd abcde 1 12 123 a! b? c?!)) {
+  foreach my $str (qw(a abcd ABCXYZ 1 123 456789 aeiou! lmnop? AbCdEfG?!)) {
     # Check new() successfully returns object
     my $obj = $class->new();
     is(ref $obj => $class, "new $class object without seed");
