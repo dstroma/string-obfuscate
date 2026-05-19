@@ -51,6 +51,12 @@ sub do_test ($class) {
     is($obj->deobfuscate($out) => $in,   'specified seed obfuscated string is reversed');
   }
 
+  # Passphrase
+  {
+    my $sob = String::Obfuscate->new(passphrase => "Hello World");
+    is_deeply($sob->seed => [11, 1819043144, 1867980911], "Passphrase converted to seed");
+  } 
+
   # XS vs pure-perl
   if ($List::Util::XS::VERSION) {
     my $ver = $List::Util::XS::VERSION;

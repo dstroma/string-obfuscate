@@ -20,25 +20,29 @@ package String::Obfuscate {
   };
 
   sub new ($class, %params) {
-    my $seed   = delete $params{'seed'};  # optional seed
-    my $chars  = delete $params{'chars'}; # optional char list
-    my $retsrc = delete $params{'retain_source'};
+    my $seed    = delete $params{'seed'};  # optional seed
+    my $chars   = delete $params{'chars'}; # optional char list
+    my $passph  = delete $params{'passphrase'};
+    my $rtn_src = delete $params{'retain_source'};
+
+    die 'unexpected param(s): ' . join(', ', keys %params)
+      if keys %params;
+    die 'cannot use both a seed and a passphrase'
+      if defined $seed and defined $passph;
 
     if ($chars) {
       $chars = [ split '', $$chars ] if ref $chars eq 'SCALAR';
       $chars = [ split '', $chars  ] if not ref $chars;
     }
 
-    die 'unexpected param(s): ' . join(', ', keys %params)
-      if keys %params;
-
-    $seed = make_seed() if !defined $seed;
-    $seed = [$seed]     if !ref $seed;
+    $seed = [length $passph, unpack('L*', $passph)] if $passph;
+    $seed = make_seed()             if !defined $seed;
+    $seed = [$seed]                 if !ref $seed;
 
     my $self = bless {
       chars => $chars || STD_CHARS,
       seed  => $seed,
-      $retsrc ? (retain_source => 1) : (),
+      $rtn_src ? (rtn_src => !!1) : (),
     }, $class;
 
     $self->make_codec;
@@ -57,15 +61,10 @@ package String::Obfuscate {
 
     my ($enc_src, $dec_src);
 
-    $self->{encoder} = eval($enc_src = qq<
-      sub (\$string) { \$string =~ tr|$fr_chars|$to_chars|r };
-    >) or die $@;
+    $self->{encode} = eval($enc_src = qq`sub { \$_[0] =~ tr|$fr_chars|$to_chars|r }`) or die $@;
+    $self->{decode} = eval($dec_src = qq`sub { \$_[0] =~ tr|$to_chars|$fr_chars|r }`) or die $@;
 
-    $self->{decoder} = eval($dec_src = qq<
-      sub (\$string) { \$string =~ tr|$to_chars|$fr_chars|r };
-    >) or die $@;
-
-    $self->{src} = [$enc_src, $dec_src] if $self->{retain_source};
+    $self->{src} = [$enc_src, $dec_src] if $self->{rtn_src};
 
     return $self;
   }
@@ -78,7 +77,7 @@ package String::Obfuscate {
 
   sub dump_source ($self) {
     if (!$self->{src}) {
-      $self->{retain_source} = 1;
+      $self->{rtn_src} = 1;
       $self->make_codec;
     }
     return @{$self->{src}};
@@ -87,8 +86,8 @@ package String::Obfuscate {
   sub make_seed   ()               { [time(), $$]    }
   sub seed        ($self)          { $self->{'seed'} }
   sub chars       ($self)          { $self->{chars}  }
-  sub obfuscate   ($self, $string) { $self->{encoder}->($string) }
-  sub deobfuscate ($self, $string) { $self->{decoder}->($string) }
+  sub obfuscate   ($self, $string) { $self->{encode}->($string) }
+  sub deobfuscate ($self, $string) { $self->{decode}->($string) }
 }
 
 1;
@@ -197,6 +196,7 @@ specified, one will be created.
     $ob = String::Obfuscate->new;
     $ob = String::Obfuscate->new(seed => 123);
     $ob = String::Obfuscate->new(chars => ['a'..'f',0..9]);
+    $ob = String::Obfuscate->new(passphrase => 'abcdefg');
 
 =item chars
 
@@ -206,6 +206,12 @@ The characters used to generate the cipher, specified as an arrayref.
 
 The seed or seed(s). May be specified as a number or an arrayref of multiple
 seeds. The random number generator can take up to 255 seeds.
+
+=item passphrase
+
+Instead of specifying a seed, you can specify a string passphrase which will
+be converted to a series of seeds. The first seed is the length of the string,
+then four-character groups are converted to 32-bit integers using unpack.
 
 =item retain_source
 
