@@ -220,7 +220,7 @@ subroutines will be saved before being eval-ed.
 
 =head1 OBJECT METHODS
 
-=over4
+=over 4
 
 =item B<seed()>
 
