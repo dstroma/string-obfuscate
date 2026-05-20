@@ -87,6 +87,7 @@ package String::Obfuscate 0.01 {
   sub chars       ($self)          { $self->{chars}  }
   sub obfuscate   ($self, $string) { $self->{encode}->($string) }
   sub deobfuscate ($self, $string) { $self->{decode}->($string) }
+  sub using_list_util_xs           { not $pp_shuffle }
 }
 
 1;
