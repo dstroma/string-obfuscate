@@ -1,7 +1,6 @@
 use v5.20;
 use warnings;
-use experimental 'signatures';
-use experimental 'postderef';
+use experimental qw(signatures postderef);
 
 package String::Obfuscate 0.01 {
   use Math::Random::ISAAC ();
